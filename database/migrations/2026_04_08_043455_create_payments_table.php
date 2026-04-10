@@ -14,10 +14,12 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();
-            $table->string('screenshot_path')->nullable();
+            $table->string('screenshot_path')->nullable();   // stored in storage/app/payments/
+            $table->string('screenshot_url')->nullable();    // public URL
             $table->enum('status', ['pending', 'verified', 'rejected'])->default('pending');
+            $table->text('rejection_reason')->nullable();
             $table->timestamp('verified_at')->nullable();
-            $table->foreignId('verified_by')->nullable()->constrained('users');
+            $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
     }

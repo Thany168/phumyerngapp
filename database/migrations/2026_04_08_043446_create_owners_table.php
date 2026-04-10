@@ -15,8 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('shop_name');
+            $table->text('shop_description')->nullable();
             $table->string('telegram_chat_id')->nullable();
-            $table->enum('status', ['active', 'suspended'])->default('active');
+            $table->string('logo_url')->nullable();
+            $table->enum('status', ['active', 'suspended', 'trail'])->default('active');
             $table->timestamps();
         });
     }
