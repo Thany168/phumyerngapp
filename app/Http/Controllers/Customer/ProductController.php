@@ -11,25 +11,26 @@ class ProductController extends Controller
 {
     public function index(Request $request, Owner $owner)
     {
-        $search = trim((string) $request->query('search', ''));
+        $search = trim((string) ($request->query('search', '') ?: $request->query('q', '')));
+        $searchLower = mb_strtolower($search);
 
         $categories = Category::where('owner_id', $owner->id)
             ->where('is_active', true)
-            ->with(['products' => function ($query) use ($search) {
+            ->with(['products' => function ($query) use ($searchLower) {
                 $query->where('is_available', true)
                     ->orderBy('sort_order');
 
-                if ($search !== '') {
-                    $query->where(function ($query) use ($search) {
-                        $query->where('name', 'like', "%{$search}%")
-                              ->orWhere('description', 'like', "%{$search}%");
+                if ($searchLower !== '') {
+                    $query->where(function ($query) use ($searchLower) {
+                        $query->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
+                              ->orWhereRaw('LOWER(COALESCE(description, \'\')) LIKE ?', ["%{$searchLower}%"]);
                     });
                 }
             }])
             ->orderBy('sort_order')
             ->get();
 
-        if ($search !== '') {
+        if ($searchLower !== '') {
             $categories = $categories->filter(fn($category) => $category->products->isNotEmpty())->values();
         }
 
