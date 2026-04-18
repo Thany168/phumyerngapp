@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 
 class ShopController extends Controller
 {
-    public function show(Owner $owner ) : JsonResponse
+    public function show(Owner $owner ) 
     {
         return response()->json([
             'id'          => $owner->id,
