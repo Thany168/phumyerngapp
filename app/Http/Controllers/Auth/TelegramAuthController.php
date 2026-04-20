@@ -97,11 +97,12 @@ class TelegramAuthController extends Controller
         unset($parsed['hash']);
         ksort($parsed);
 
-        $dataCheckString = implode("\n", array_map(
-            fn($k, $v) => "$k=$v",
-            array_keys($parsed),
-            array_values($parsed)
-        ));
+        $dataCheckArr = [];
+        foreach ($parsed as $key => $value) {
+        $dataCheckArr[] = "$key=$value";
+        }
+
+        $dataCheckString = implode("\n", $dataCheckArr);
 
         $secretKey = hash_hmac('sha256', config('telegram.bot_token'), 'WebAppData', true);
         $expected  = hash_hmac('sha256', $dataCheckString, $secretKey);
