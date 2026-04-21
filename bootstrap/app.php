@@ -20,6 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'telegram.webhook' => TelegramWebhookMiddleware::class,
         ]);
     })
+    ->withMiddleware(function (Middleware $middleware) {
+    $middleware->validateCsrfTokens(except: [
+        'api/*' // This helps with external testing
+    ]);
+
+    $middleware->statefulApi(); // Ensures Sanctum works with your React app
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
