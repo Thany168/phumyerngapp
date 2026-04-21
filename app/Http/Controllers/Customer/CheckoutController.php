@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Owner;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CheckoutController extends Controller
 {
@@ -27,13 +28,46 @@ class CheckoutController extends Controller
                 'user_id'     => $user->id,
                 'telegram_id' => $user->telegram_id ?? '',
                 'name'        => $user->name,
-                'phone'       => $data['phone'],
-                'location'    => $data['location'],
+                'phone'       => $request->phone,
+                'location'    => $request->location,
             ],
-            $data['items'],
+            $request['items'],
             $owner->id
         );
 
+        $this->notifyOwner($order);
+
         return response()->json($order, 201);
     }
+    private function notifyOwner($order)
+        {
+            $owner = $order->owner; // Make sure your relationships are set
+            $botToken = config('telegram.bot_token');
+
+            if (!$botToken) {
+                Log::info('Telegram bot token not set, skipping notification');
+                return;
+            }
+
+            $text = "🔔 *New Order #{$order->id}*\n";
+            $text .= "👤 Customer: {$order->customer_name}\n";
+            $text .= "📞 Phone: {$order->customer_phone}\n";
+            $text .= "📍 Location: {$order->delivery_location}\n";
+
+            try {
+                \Illuminate\Support\Facades\Http::withOptions(['verify' => false])->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                    'chat_id' => $owner->telegram_chat_id,
+                    'text' => $text,
+                    'parse_mode' => 'Markdown',
+                    'reply_markup' => [
+                        'inline_keyboard' => [[
+                            ['text' => '✅ Confirm', 'callback_data' => "confirm_order_{$order->id}"],
+                            ['text' => '❌ Reject', 'callback_data' => "reject_order_{$order->id}"]
+                        ]]
+                    ]
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Telegram sendMessage failed: ' . $e->getMessage());
+            }
+        }
 }
