@@ -17,8 +17,11 @@ class TelegramWebhookMiddleware
     {
         $secret = $request->header('X-Telegram-Bot-Api-Secret-Token');
 
-        if ($secret !== config('services.telegram.webhook_secret')) {
-            abort(403);
+        // if ($secret !== config('services.telegram.webhook_secret')) {
+        //     abort(403);
+        // }
+        if ($secret !== config('telegram.webhook_secret')) {
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
         return $next($request);
     }

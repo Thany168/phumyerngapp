@@ -2,15 +2,15 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/test', function () {
-    return response()->json(['message' => 'API working']);
-});
+// Route::get('/test', function () {
+//     return response()->json(['message' => 'API working']);
+// });
 // ─── Public ──────────────────────────────────────────────
 Route::post('/auth/telegram',     [App\Http\Controllers\Auth\TelegramAuthController::class, 'login']);
 Route::post('/auth/telegram/dev', [App\Http\Controllers\Auth\TelegramAuthController::class, 'loginDev']);
 
 // Public shop browsing (no auth needed)
-Route::get('/shop',          [App\Http\Controllers\Customer\ShopController::class, 'show']);
+Route::get('/shop/{owner}',          [App\Http\Controllers\Customer\ShopController::class, 'show']);
 Route::get('/shop/{owner}/products', [App\Http\Controllers\Customer\ProductController::class, 'index']);
 
 // ─── Customer ─────────────────────────────────────────────
