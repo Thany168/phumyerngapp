@@ -36,6 +36,12 @@ Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(functi
     Route::put('products/{product}',    [App\Http\Controllers\Owner\ProductController::class, 'update']);
     Route::delete('products/{product}', [App\Http\Controllers\Owner\ProductController::class, 'destroy']);
 
+
+//Delivery
+Route::middleware(['auth:sanctum', 'role:delivery'])->prefix('delivery')->group(function () {
+    Route::get('tasks', [App\Http\Controllers\Delivery\TaskController::class, 'index']);
+    Route::patch('tasks/{order}/delivered', [App\Http\Controllers\Delivery\TaskController::class, 'markDelivered']);
+});
     // Orders
     Route::get('orders',                              [App\Http\Controllers\Owner\OrderController::class, 'index']);
     Route::get('orders/{order}',                      [App\Http\Controllers\Owner\OrderController::class, 'show']);
@@ -64,3 +70,4 @@ Route::middleware(['auth:sanctum', 'role:super_admin'])->prefix('admin')->group(
     Route::put('owners/{owner}/subscription',         [App\Http\Controllers\Admin\OwnerController::class, 'updateSubscription']);
     Route::get('stats',                               [App\Http\Controllers\Admin\SystemMonitorController::class, 'index']);
 });
+

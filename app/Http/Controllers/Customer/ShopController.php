@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Owner;
+use Illuminate\Http\JsonResponse;
 
 class ShopController extends Controller
 {
-    public function show(Owner $owner)
+    public function show(Owner $owner ) 
     {
         return response()->json([
             'id'          => $owner->id,
