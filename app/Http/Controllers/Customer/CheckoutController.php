@@ -35,39 +35,55 @@ class CheckoutController extends Controller
             $owner->id
         );
 
+
         $this->notifyOwner($order);
 
         return response()->json($order, 201);
     }
     private function notifyOwner($order)
-        {
-            $owner = $order->owner; // Make sure your relationships are set
-            $botToken = config('telegram.bot_token');
+{
+    $owner = $order->owner;
 
-            if (!$botToken) {
-                Log::info('Telegram bot token not set, skipping notification');
-                return;
-            }
+    // Safety check: if there is no owner, don't try to send a message
+    if (!$owner) {
+        Log::error('Order #' . $order->id . ' has no associated owner.');
+        return;
+    }
 
-            $text = "🔔 *New Order #{$order->id}*\n";
-            $text .= "👤 Customer: {$order->customer_name}\n";
-            $text .= "📞 Phone: {$order->customer_phone}\n";
-            $text .= "📍 Location: {$order->delivery_location}\n";
+    \Illuminate\Support\Facades\Log::info('Checking Owner Data: ', [
+        'owner_id_found' => $owner->id ?? 'NOT FOUND',
+        'chat_id_found' => $owner->telegram_chat_id ?? 'EMPTY'
+    ]);
 
-            try {
-                \Illuminate\Support\Facades\Http::withOptions(['verify' => false])->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                    'chat_id' => $owner->telegram_chat_id,
-                    'text' => $text,
-                    'parse_mode' => 'Markdown',
-                    'reply_markup' => [
-                        'inline_keyboard' => [[
-                            ['text' => '✅ Confirm', 'callback_data' => "confirm_order_{$order->id}"],
-                            ['text' => '❌ Reject', 'callback_data' => "reject_order_{$order->id}"]
-                        ]]
-                    ]
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Telegram sendMessage failed: ' . $e->getMessage());
-            }
-        }
+    // Pull from config, but fallback to env directly if config is empty
+    $botToken = config('telegram.bot_token') ?? env('TELEGRAM_BOT_TOKEN');
+
+    if (!$botToken) {
+        Log::info('Telegram bot token not set, skipping notification');
+        return;
+    }
+
+    $text = "🔔 *New Order #{$order->id}*\n";
+    $text .= "👤 Customer: {$order->customer_name}\n";
+    $text .= "📞 Phone: {$order->customer_phone}\n";
+    $text .= "📍 Location: {$order->delivery_location}\n";
+
+    try {
+        // Change withOptions to withoutVerifying() here:
+        \Illuminate\Support\Facades\Http::withoutVerifying()
+            ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                'chat_id' => $owner->telegram_chat_id,
+                'text' => $text,
+                'parse_mode' => 'Markdown',
+                'reply_markup' => [
+                    'inline_keyboard' => [[
+                        ['text' => '✅ Confirm', 'callback_data' => "confirm_order_{$order->id}"],
+                        ['text' => '❌ Reject', 'callback_data' => "reject_order_{$order->id}"]
+                    ]]
+                ]
+            ]);
+    } catch (\Exception $e) {
+        Log::error('Telegram sendMessage failed: ' . $e->getMessage());
+    }
+}
 }
