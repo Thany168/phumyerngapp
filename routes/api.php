@@ -19,6 +19,7 @@ Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
     Route::get('/orders',                    [App\Http\Controllers\Customer\OrderTrackingController::class, 'index']);
     Route::get('/orders/{order}',            [App\Http\Controllers\Customer\OrderTrackingController::class, 'show']);
     Route::post('/orders/{order}/payment',   [App\Http\Controllers\Customer\OrderTrackingController::class, 'uploadPayment']);
+    
 });
 
 // ─── Owner ────────────────────────────────────────────────

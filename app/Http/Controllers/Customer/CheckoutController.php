@@ -35,7 +35,6 @@ class CheckoutController extends Controller
             $owner->id
         );
 
-
         $this->notifyOwner($order);
 
         return response()->json($order, 201);
