@@ -24,6 +24,26 @@ class OrderController extends Controller
 
         return response()->json($query->paginate(20));
     }
+    // app/Http/Controllers/Owner/OrderController.php
+
+    public function getMyLink(Request $request)
+    {
+        // Make sure the user has an owner profile
+        if (!$request->user()->owner) {
+            return response()->json(['message' => 'Owner profile not found'], 404);
+        }
+
+        $ownerId = $request->user()->owner->id;
+        $botUsername = "phumyerng_bot"; // or env('TELEGRAM_BOT_USERNAME')
+
+        $link = "https://t.me/{$botUsername}/app?startapp={$ownerId}";
+
+        return response()->json([
+            'owner_id' => $ownerId,
+            'link' => $link,
+            'qr_data' => $link // You can use this string to generate a QR code in React
+        ]);
+    }
 
    public function store(Request $request, \App\Models\Owner $owner)
 {
@@ -37,7 +57,7 @@ class OrderController extends Controller
 
     // 1. Create the Order linked to the Owner from the URL
     $order = Order::create([
-        'user_id' => auth()->id ?? null,// This prevents the error if not logged in
+        'user_id' => auth()->id,// This prevents the error if not logged in
         'owner_id' => $owner->id, // Get from URL parameter automatically
         'total_amount' => $validated['total_amount'],
         'phone' => $validated['phone'] ?? null,
