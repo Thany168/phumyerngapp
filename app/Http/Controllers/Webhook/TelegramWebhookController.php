@@ -3,46 +3,81 @@
 namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
-use App\Models\Order;
-use App\Services\OrderService;
-use App\Services\DeliveryService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http; // We use this to talk to Telegram
+use App\Models\Owner;
 
 class TelegramWebhookController extends Controller
 {
-    public function __construct(
-        private OrderService    $orderService,
-        private DeliveryService $deliveryService,
-    ) {}
+    protected $botToken;
+
+    public function __construct()
+    {
+        // Make sure you have TELEGRAM_BOT_TOKEN in your .env file
+        $this->botToken = env('TELEGRAM_BOT_TOKEN');
+    }
 
     public function handle(Request $request)
     {
         $update = $request->all();
-        if (isset($update['callback_query'])) {
-            $this->handleCallback($update['callback_query']);
+
+        if (isset($update['message'])) {
+            $chatId = $update['message']['chat']['id'];
+            $text = $update['message']['text'] ?? '';
+
+            if (str_starts_with($text, '/start')) {
+                $parts = explode(' ', $text);
+                $ownerId = count($parts) > 1 ? $parts[1] : null;
+
+                if ($ownerId && is_numeric($ownerId)) {
+                    $owner = Owner::find($ownerId);
+                    if ($owner) {
+                        return $this->sendShopWelcome($chatId, $owner);
+                    }
+                }
+                return $this->sendDefaultWelcome($chatId);
+            }
         }
-        return response()->json(['ok' => true]);
+        return response()->json(['status' => 'success']);
     }
 
-    private function handleCallback(array $callback): void
+    private function sendShopWelcome($chatId, $owner)
     {
-        $data    = $callback['data'] ?? '';
-        $parts   = explode(':', $data);
-        $action  = $parts[0] ?? '';
-        $orderId = (int) ($parts[1] ?? 0);
+        $botUsername = "phumyerng_bot";
+        $appUrl = "https://t.me/{$botUsername}/app?startapp={$owner->id}";
 
-        if (!$orderId) return;
+        $text = "Welcome to *{$owner->shop_name}*! 🏪\n\n" .
+                "{$owner->shop_description}\n\n" .
+                "Click the button below to browse our menu and order.";
 
-        $order = Order::with('items.product', 'payment', 'owner', 'delivery')->find($orderId);
-        if (!$order) return;
+        return $this->sendMessage($chatId, $text, [
+            'inline_keyboard' => [[
+                ['text' => "🛒 Open Menu", 'web_app' => ['url' => $appUrl]]
+            ]]
+        ]);
+    }
 
-        match ($action) {
-            'confirm_order' => $this->orderService->confirmOrder($order, 0),
-            'reject_order'  => $this->orderService->rejectOrder($order, 'Rejected by owner'),
-            'delivered'     => $order->delivery
-                ? $this->deliveryService->markDelivered($order->delivery)
-                : null,
-            default         => null,
-        };
+    private function sendDefaultWelcome($chatId)
+    {
+        $text = "Welcome to Phum Yerng! 🚀\n\nPlease use a shop link to see a specific menu.";
+        return $this->sendMessage($chatId, $text);
+    }
+
+    // This is the missing method that actually talks to Telegram
+    private function sendMessage($chatId, $text, $replyMarkup = null)
+    {
+        $url = "https://api.telegram.org/bot{$this->botToken}/sendMessage";
+
+        $data = [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'parse_mode' => 'Markdown'
+        ];
+
+        if ($replyMarkup) {
+            $data['reply_markup'] = json_encode($replyMarkup);
+        }
+
+        return Http::post($url, $data);
     }
 }

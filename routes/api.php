@@ -19,12 +19,13 @@ Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
     Route::get('/orders',                    [App\Http\Controllers\Customer\OrderTrackingController::class, 'index']);
     Route::get('/orders/{order}',            [App\Http\Controllers\Customer\OrderTrackingController::class, 'show']);
     Route::post('/orders/{order}/payment',   [App\Http\Controllers\Customer\OrderTrackingController::class, 'uploadPayment']);
-    
+
 });
 
 // ─── Owner ────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(function () {
     // Categories
+    Route::get('/owner/my-link', [App\Http\Controllers\Owner\OrderController::class, 'getMyLink']);
     Route::get('categories',             [App\Http\Controllers\Owner\CategoryController::class, 'index']);
     Route::post('categories',            [App\Http\Controllers\Owner\CategoryController::class, 'store']);
     Route::put('categories/{category}',  [App\Http\Controllers\Owner\CategoryController::class, 'update']);
