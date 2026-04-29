@@ -56,7 +56,6 @@ class TelegramWebhookController extends Controller
             ]]
         ]);
     }
-
     private function sendDefaultWelcome($chatId)
     {
         $text = "Welcome to Phum Yerng! 🚀\n\nPlease use a shop link to see a specific menu.";
