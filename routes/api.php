@@ -15,7 +15,7 @@ Route::get('/shop/{owner}/products', [App\Http\Controllers\Customer\ProductContr
 
 // ─── Customer ─────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
-    Route::post('/shop/{owner}/checkout',    [App\Http\Controllers\Customer\CheckoutController::class, 'store']);
+    Route::post('/shop/{owner}/checkout', [App\Http\Controllers\Api\CheckoutController::class, 'store']);
     Route::get('/orders',                    [App\Http\Controllers\Customer\OrderTrackingController::class, 'index']);
     Route::get('/orders/{order}',            [App\Http\Controllers\Customer\OrderTrackingController::class, 'show']);
     Route::post('/orders/{order}/payment',   [App\Http\Controllers\Customer\OrderTrackingController::class, 'uploadPayment']);
@@ -24,14 +24,22 @@ Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
 
 // ─── Owner ────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(function () {
+    // Order Management
+    Route::get('orders', [App\Http\Controllers\Owner\OrderController::class, 'index']);
+    Route::put('orders/{order}/status', [App\Http\Controllers\Owner\OrderController::class, 'updateStatus']);
+
+
+    Route::get('my-link', [App\Http\Controllers\Owner\OrderController::class, 'getMyLink']);
+
     // Categories
-    Route::get('/owner/my-link', [App\Http\Controllers\Owner\OrderController::class, 'getMyLink']);
+    Route::apiResource('categories', App\Http\Controllers\Owner\CategoryController::class);
     Route::get('categories',             [App\Http\Controllers\Owner\CategoryController::class, 'index']);
     Route::post('categories',            [App\Http\Controllers\Owner\CategoryController::class, 'store']);
     Route::put('categories/{category}',  [App\Http\Controllers\Owner\CategoryController::class, 'update']);
     Route::delete('categories/{category}', [App\Http\Controllers\Owner\CategoryController::class, 'destroy']);
 
     // Products
+    Route::apiResource('products', App\Http\Controllers\Owner\ProductController::class);
     Route::get('products',              [App\Http\Controllers\Owner\ProductController::class, 'index']);
     Route::post('products',             [App\Http\Controllers\Owner\ProductController::class, 'store']);
     Route::get('products/{product}',    [App\Http\Controllers\Owner\ProductController::class, 'show']);

@@ -1,88 +1,80 @@
 <?php
 
-namespace App\Http\Controllers\Customer;
+namespace App\Http\Controllers\Api; // or your specific folder
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Owner;
-use App\Services\OrderService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http; // For the Telegram API call
+use Illuminate\Support\Facades\Log;  // THIS FIXES THE LOG ERROR
 
 class CheckoutController extends Controller
 {
-    public function __construct(private OrderService $orderService) {}
-
-    public function store(Request $request, Owner $owner)
-    {
-        $data = $request->validate([
-            'phone'              => 'required|string|max:30',
-            'location'           => 'required|string',
-            'items'              => 'required|array|min:1',
-            'items.*.product_id' => 'required|integer',
-            'items.*.quantity'   => 'required|integer|min:1',
-        ]);
-
-        $user  = $request->user();
-        $order = $this->orderService->createOrder(
-            [
-                'user_id'     => $user->id,
-                'telegram_id' => $user->telegram_id ?? '',
-                'name'        => $user->name,
-                'phone'       => $request->phone,
-                'location'    => $request->location,
-            ],
-            $request['items'],
-            $owner->id
-        );
-
-        $this->notifyOwner($order);
-
-        return response()->json($order, 201);
-    }
-    private function notifyOwner($order)
+    public function store(Request $request)
 {
-    $owner = $order->owner;
-
-    // Safety check: if there is no owner, don't try to send a message
-    if (!$owner) {
-        Log::error('Order #' . $order->id . ' has no associated owner.');
-        return;
-    }
-
-    \Illuminate\Support\Facades\Log::info('Checking Owner Data: ', [
-        'owner_id_found' => $owner->id ?? 'NOT FOUND',
-        'chat_id_found' => $owner->telegram_chat_id ?? 'EMPTY'
+    $validated = $request->validate([
+        'owner_id' => 'required|exists:owners,id',
+        'items' => 'required|array',
+        'total_amount' => 'required|numeric',
+        'customer_name' => 'required|string',
+        'phone' => 'nullable|string',
+        'location' => 'nullable|string',
     ]);
 
-    // Pull from config, but fallback to env directly if config is empty
-    $botToken = config('telegram.bot_token') ?? env('TELEGRAM_BOT_TOKEN');
+    $order = Order::create([
+    'owner_id'      => $validated['owner_id'],
+    'user_id'       => auth()->id,
+    'customer_name' => $validated['customer_name'],
+    'phone'         => $validated['phone'],     // Match your DB column name
+    'location'      => $validated['location'],  // Match your DB column name
+    'total_amount'  => $validated['total_amount'],
+    'status'        => 'pending',
+]);
 
-    if (!$botToken) {
-        Log::info('Telegram bot token not set, skipping notification');
-        return;
+    foreach ($validated['items'] as $item) {
+        $order->items()->create([
+            'product_id' => $item['product_id'],
+            'quantity' => $item['quantity'],
+            'price' => $item['price'],
+        ]);
     }
 
-    $text = "🔔 *New Order #{$order->id}*\n";
-    $text .= "👤 Customer: {$order->customer_name}\n";
-    $text .= "📞 Phone: {$order->customer_phone}\n";
-    $text .= "📍 Location: {$order->delivery_location}\n";
+    $owner = Owner::find($validated['owner_id']);
+
+    if ($owner && $owner->telegram_chat_id) {
+        Log::info("Notifying Owner: " . $owner->shop_name);
+        $this->notifyOwnerViaTelegram($owner, $order);
+    }
+
+    return response()->json(['message' => 'Order Success!', 'id' => $order->id], 201);
+}
+
+    private function notifyOwnerViaTelegram($owner, $order)
+{
+    $token = env('TELEGRAM_BOT_TOKEN');
+
+    // Using string concatenation (.) is safer and avoids the PHP 8.2 interpolation errors
+    $message = "🚀 *New Order Alert!*\n\n" .
+               "🏪 *Shop:* " . $owner->shop_name . "\n" .
+               "👤 *Customer:* " . $order->customer_name . "\n" .
+               "💰 *Total:* $" . number_format($order->total_amount, 2) . "\n" .
+               "📞 *Contact:* " . ($order->phone ?? 'N/A') . "\n\n" .
+               "👉 _Check your dashboard to confirm this order._";
 
     try {
-        // Change withOptions to withoutVerifying() here:
-        \Illuminate\Support\Facades\Http::withoutVerifying()
-            ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                'chat_id' => $owner->telegram_chat_id,
-                'text' => $text,
-                'parse_mode' => 'Markdown',
-                'reply_markup' => [
-                    'inline_keyboard' => [[
-                        ['text' => '✅ Confirm', 'callback_data' => "confirm_order_{$order->id}"],
-                        ['text' => '❌ Reject', 'callback_data' => "reject_order_{$order->id}"]
-                    ]]
-                ]
-            ]);
-    } catch (\Exception $e) {
-        Log::error('Telegram sendMessage failed: ' . $e->getMessage());
+    $response = Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
+        'chat_id' => $owner->telegram_chat_id,
+        'text' => $message,
+        'parse_mode' => 'Markdown'
+    ]);
+
+    if (!$response->successful()) {
+        // This will log exactly why Telegram rejected the message
+        Log::error("Telegram API Error: " . $response->body());
     }
+} catch (\Exception $e) {
+    Log::error("Connection Error: " . $e->getMessage());
+}
 }
 }
