@@ -8,10 +8,15 @@ use Illuminate\Support\Facades\Route;
 // ─── Public ──────────────────────────────────────────────
 Route::post('/auth/telegram',     [App\Http\Controllers\Auth\TelegramAuthController::class, 'login']);
 Route::post('/auth/telegram/dev', [App\Http\Controllers\Auth\TelegramAuthController::class, 'loginDev']);
+Route::post('/auth/owner/login',  [App\Http\Controllers\Auth\OwnerAuthController::class, 'login']);
+Route::post('/auth/owner/logout', [App\Http\Controllers\Auth\OwnerAuthController::class, 'logout'])->middleware('auth:sanctum');
 
 // Public shop browsing (no auth needed)
 Route::get('/shop/{owner}',          [App\Http\Controllers\Customer\ShopController::class, 'show']);
 Route::get('/shop/{owner}/products', [App\Http\Controllers\Customer\ProductController::class, 'index']);
+Route::get('/shop/{owner}/categories', [App\Http\Controllers\Customer\CategoryController::class, 'index']);
+
+// Route::post('/auth/owner/login', [App\Http\Controllers\Auth\OwnerAuthController::class, 'login']);
 
 // ─── Customer ─────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
@@ -39,11 +44,11 @@ Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(functi
     Route::delete('products/{product}', [App\Http\Controllers\Owner\ProductController::class, 'destroy']);
 
 
-//Delivery
-Route::middleware(['auth:sanctum', 'role:delivery'])->prefix('delivery')->group(function () {
-    Route::get('tasks', [App\Http\Controllers\Delivery\TaskController::class, 'index']);
-    Route::patch('tasks/{order}/delivered', [App\Http\Controllers\Delivery\TaskController::class, 'markDelivered']);
-});
+    //Delivery
+    Route::middleware(['auth:sanctum', 'role:delivery'])->prefix('delivery')->group(function () {
+        Route::get('tasks', [App\Http\Controllers\Delivery\TaskController::class, 'index']);
+        Route::patch('tasks/{order}/delivered', [App\Http\Controllers\Delivery\TaskController::class, 'markDelivered']);
+    });
     // Orders
     Route::get('orders',                              [App\Http\Controllers\Owner\OrderController::class, 'index']);
     Route::get('orders/{order}',                      [App\Http\Controllers\Owner\OrderController::class, 'show']);
@@ -73,3 +78,13 @@ Route::middleware(['auth:sanctum', 'role:super_admin'])->prefix('admin')->group(
     Route::get('stats',                               [App\Http\Controllers\Admin\SystemMonitorController::class, 'index']);
 });
 
+
+
+Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(function () {
+
+
+    // Profile
+    Route::get('profile',          [App\Http\Controllers\Owner\ProfileController::class, 'show']);
+    Route::post('profile',         [App\Http\Controllers\Owner\ProfileController::class, 'update']);
+    Route::post('change-password', [App\Http\Controllers\Owner\ProfileController::class, 'changePassword']);
+});

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -14,15 +13,34 @@ class User extends Authenticatable
     use HasApiTokens;
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    // 
+
+    protected $fillable = [
+        'name',
+        'company_code',      // owner only
+        'phone',             // owner only
+        'email',             // super_admin only
+        'password',          // owner + super_admin
+        'telegram_id',       // customer only
+        'telegram_username', // customer only
+        'role',              // super_admin | owner | customer
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password'          => 'hashed',
+        ];
+    }
+
     public function isAdmin()
     {
-        return $this->role === 'admin';
+        return $this->role === 'super_admin';
     }
 
     public function isOwner()
@@ -30,46 +48,20 @@ class User extends Authenticatable
         return $this->role === 'owner';
     }
 
-    protected $fillable = [
-        'name',
-        'email',
-        'telegram_id',
-        'telegram_username',
-        'role',
-        'password',
-    ];
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-    /**
-     * 
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    public function isCustomer()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->role === 'customer';
     }
-
-
     public function owner()
     {
         return $this->hasOne(Owner::class);
     }
+
     public function deliveries()
     {
         return $this->hasMany(Delivery::class, 'delivery_user_id');
     }
+
     public function orders()
     {
         return $this->hasMany(Order::class);
