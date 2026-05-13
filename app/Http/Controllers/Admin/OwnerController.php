@@ -59,6 +59,16 @@ class OwnerController extends Controller
     {
         return response()->json($owner->load('user', 'subscription', 'products', 'orders'));
     }
+ 
+    public function getMyLink(Request $request) {
+    $ownerId = $request->user()->owner->id;
+    $botUsername = "phumyerng_bot";
+
+    // This is the link the owner can copy and give to customers
+    $link = "https://t.me/{$botUsername}/app?startapp={$ownerId}";
+
+        return response()->json(['link' => $link]);
+    }
 
     public function update(Request $request, Owner $owner)
     {

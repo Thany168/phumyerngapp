@@ -8,14 +8,17 @@ use Illuminate\Http\Request;
 
 class TelegramAuthController extends Controller
 {
+
     public function login(Request $request)
 {
+
     // 1. Get data from React (using the same key names)
     $initData = $request->input('initData') ?? $request->input('init_data');
 
     if (!$initData) {
         return response()->json(['message' => 'No initData provided'], 400);
     }
+    
 
     // 2. Parse the string into an array
     $parsed = $this->parseInitData($initData);
@@ -46,14 +49,19 @@ class TelegramAuthController extends Controller
     // 6. Generate Token
     $token = $user->createToken('telegram-miniapp')->plainTextToken;
 
-    return response()->json([
-        'token' => $token,
-        'user' => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'role' => $user->role,
-        ],
-    ]);
+// 7. Find if this user owns a shop (The "Smart Routing" part)
+$owner = \App\Models\Owner::where('user_id', $user->id)->first();
+
+return response()->json([
+    'token' => $token,
+    'user' => [
+        'id' => $user->id,
+        'name' => $user->name,
+        'role' => $user->role,
+    ],
+    // Return the owner_id so React knows which menu to load
+    'owner_id' => $owner ? $owner->id : null
+]);
 }
 
     // For testing without real Telegram — creates/finds user by telegram_id directly
@@ -81,7 +89,14 @@ class TelegramAuthController extends Controller
 
         $token = $user->createToken('dev-token')->plainTextToken;
 
-        return response()->json(['token' => $token, 'user' => $user]);
+    // Lookup owner for Dev Mode
+            $owner = \App\Models\Owner::where('user_id', $user->id)->first();
+
+            return response()->json([
+                'token' => $token,
+                'user' => $user,
+                'owner_id' => $owner ? $owner->id : null
+            ]);
     }
 
     private function parseInitData(string $initData): array
