@@ -30,7 +30,7 @@ class TelegramWebhookController extends Controller
                 $ownerId = count($parts) > 1 ? $parts[1] : null;
 
                 if ($ownerId && is_numeric($ownerId)) {
-                    $owner = Owner::find($ownerId);
+                    $owner = Owner::find($ownerId , $chatId);
                     if ($owner) {
                         return $this->sendShopWelcome($chatId, $owner);
                     }
@@ -58,7 +58,7 @@ class TelegramWebhookController extends Controller
     }
     private function sendDefaultWelcome($chatId)
     {
-        $text = "Welcome to Phum Yerng! 🚀\n\nPlease use a shop link to see a specific menu.";
+        $text = "Welcome to Phum eying! 🚀\n\nPlease use a shop link to see a specific menu.";
         return $this->sendMessage($chatId, $text);
     }
 

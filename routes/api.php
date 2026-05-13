@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Owner\OrderController;
+use App\Http\Controllers\Admin\OwnerController;
+use App\Http\Controllers\Admin\SystemMonitorController;
 
 Route::get('/test', function () {
     return response()->json(['message' => 'API working']);
@@ -8,6 +11,7 @@ Route::get('/test', function () {
 // ─── Public ──────────────────────────────────────────────
 Route::post('/auth/telegram',     [App\Http\Controllers\Auth\TelegramAuthController::class, 'login']);
 Route::post('/auth/telegram/dev', [App\Http\Controllers\Auth\TelegramAuthController::class, 'loginDev']);
+Route::post('/telegram/webhook/{ownerId}', [OrderController::class, 'handleWebhook']);
 
 // Public shop browsing (no auth needed)
 Route::get('/shop/{owner}',          [App\Http\Controllers\Customer\ShopController::class, 'show']);
@@ -25,7 +29,8 @@ Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
 // ─── Owner ────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(function () {
     // Categories
-    Route::get('/owner/my-link', [App\Http\Controllers\Owner\OrderController::class, 'getMyLink']);
+    Route::get('my-link', [App\Http\Controllers\Owner\OrderController::class, 'getMyLink']);
+    Route::post('telegram-settings', [App\Http\Controllers\Owner\OrderController::class, 'updateTelegramSettings']);
     Route::get('categories',             [App\Http\Controllers\Owner\CategoryController::class, 'index']);
     Route::post('categories',            [App\Http\Controllers\Owner\CategoryController::class, 'store']);
     Route::put('categories/{category}',  [App\Http\Controllers\Owner\CategoryController::class, 'update']);
@@ -38,12 +43,6 @@ Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(functi
     Route::put('products/{product}',    [App\Http\Controllers\Owner\ProductController::class, 'update']);
     Route::delete('products/{product}', [App\Http\Controllers\Owner\ProductController::class, 'destroy']);
 
-
-//Delivery
-Route::middleware(['auth:sanctum', 'role:delivery'])->prefix('delivery')->group(function () {
-    Route::get('tasks', [App\Http\Controllers\Delivery\TaskController::class, 'index']);
-    Route::patch('tasks/{order}/delivered', [App\Http\Controllers\Delivery\TaskController::class, 'markDelivered']);
-});
     // Orders
     Route::get('orders',                              [App\Http\Controllers\Owner\OrderController::class, 'index']);
     Route::get('orders/{order}',                      [App\Http\Controllers\Owner\OrderController::class, 'show']);
@@ -51,6 +50,7 @@ Route::middleware(['auth:sanctum', 'role:delivery'])->prefix('delivery')->group(
     Route::patch('orders/{order}/reject',             [App\Http\Controllers\Owner\OrderController::class, 'reject']);
     Route::patch('orders/{order}/assign-delivery',    [App\Http\Controllers\Owner\OrderController::class, 'assignDelivery']);
     Route::get('delivery-staff',                      [App\Http\Controllers\Owner\OrderController::class, 'deliveryStaff']);
+
 
     // Payments
     Route::get('payments', [App\Http\Controllers\Owner\PaymentController::class, 'index']);
@@ -63,7 +63,7 @@ Route::middleware(['auth:sanctum', 'role:delivery'])->prefix('delivery')->group(
 });
 
 // ─── Super Admin ──────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'role:super_admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth:sanctum', 'is_super_admin'])->prefix('admin')->group(function () {
     Route::get('owners',                              [App\Http\Controllers\Admin\OwnerController::class, 'index']);
     Route::post('owners',                             [App\Http\Controllers\Admin\OwnerController::class, 'store']);
     Route::get('owners/{owner}',                      [App\Http\Controllers\Admin\OwnerController::class, 'show']);
@@ -71,5 +71,13 @@ Route::middleware(['auth:sanctum', 'role:super_admin'])->prefix('admin')->group(
     Route::delete('owners/{owner}',                   [App\Http\Controllers\Admin\OwnerController::class, 'destroy']);
     Route::put('owners/{owner}/subscription',         [App\Http\Controllers\Admin\OwnerController::class, 'updateSubscription']);
     Route::get('stats',                               [App\Http\Controllers\Admin\SystemMonitorController::class, 'index']);
+    // Stats for your React Dashboard charts/cards
+    Route::get('/dashboard-stats', [OwnerController::class, 'dashboardStats']);
+
+    // Quick status change
+    Route::patch('/owners/{owner}/status', [OwnerController::class, 'toggleStatus']);
+
+    // Your existing owner routes
+    Route::apiResource('owners', OwnerController::class);
 });
 

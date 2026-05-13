@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Override;
 
 class Owner extends Model
 {
@@ -11,6 +12,7 @@ class Owner extends Model
         'shop_name',
         'shop_description',
         'telegram_chat_id',
+        'telegram_bot_token',
         'logo_url',
         'status',
     ];
@@ -38,5 +40,9 @@ class Owner extends Model
     public function subscription()
     {
         return $this->hasOne(Subscription::class)->latestOfMany();
+    }
+    public function delete()
+    {
+        return parent::delete();
     }
 }

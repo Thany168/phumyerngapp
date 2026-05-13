@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Webhook\TelegramWebhookController;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\IsSuperAdmin;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\TelegramWebhookMiddleware;
 
@@ -15,10 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->alias([
-            'role'             => RoleMiddleware::class,
-            'telegram.webhook' => TelegramWebhookMiddleware::class,
+        $middleware->validateCsrfTokens(except: [
+        'api/telegram/webhook/*'
         ]);
+        $middleware->alias([
+        'is_super_admin' => \App\Http\Middleware\IsSuperAdmin::class,
+    ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

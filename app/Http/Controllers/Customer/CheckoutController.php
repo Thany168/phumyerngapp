@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Owner;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http; // Corrected this line
 use Illuminate\Support\Facades\Log;
 
 class CheckoutController extends Controller
@@ -22,7 +23,7 @@ class CheckoutController extends Controller
             'items.*.quantity'   => 'required|integer|min:1',
         ]);
 
-        $user  = $request->user();
+        $user = $request->user();
         $order = $this->orderService->createOrder(
             [
                 'user_id'     => $user->id,
@@ -35,54 +36,38 @@ class CheckoutController extends Controller
             $owner->id
         );
 
-        $this->notifyOwner($order);
+        // Fixed the argument order: $owner goes first, then $order
+       $this->notifyOwnerViaTelegram($owner, $order);
 
         return response()->json($order, 201);
     }
-    private function notifyOwner($order)
-{
-    $owner = $order->owner;
 
-    // Safety check: if there is no owner, don't try to send a message
-    if (!$owner) {
-        Log::error('Order #' . $order->id . ' has no associated owner.');
-        return;
-    }
+    private function notifyOwnerViaTelegram($owner, $order)
+    {
+        $token = $owner->telegram_bot_token;
+        $groupId = $owner->telegram_chat_id; // Holds the group ID starting with "-"
 
-    \Illuminate\Support\Facades\Log::info('Checking Owner Data: ', [
-        'owner_id_found' => $owner->id ?? 'NOT FOUND',
-        'chat_id_found' => $owner->telegram_chat_id ?? 'EMPTY'
-    ]);
+        // Stop if the owner hasn't configured their group/bot yet
+        if (!$token || !$groupId) {
+            Log::warning("Skipping notification for Owner ID {$owner->id}: Missing token or group ID.");
+            return;
+        }
 
-    // Pull from config, but fallback to env directly if config is empty
-    $botToken = config('telegram.bot_token') ?? env('TELEGRAM_BOT_TOKEN');
+        $message = "🔔 *NEW ORDER PLACED!*\n\n" .
+                   "🏪 *Shop:* " . $owner->shop_name . "\n" .
+                   "👤 *Customer:* " . $order->customer_name . "\n" .
+                   "💰 *Total:* $" . number_format($order->total_amount, 2) . "\n" .
+                   "📞 *Contact:* " . ($order->customer_phone ?? 'N/A') . "\n\n" .
+                   "👉 _Please review the dashboard to process this order._";
 
-    if (!$botToken) {
-        Log::info('Telegram bot token not set, skipping notification');
-        return;
-    }
-
-    $text = "🔔 *New Order #{$order->id}*\n";
-    $text .= "👤 Customer: {$order->customer_name}\n";
-    $text .= "📞 Phone: {$order->customer_phone}\n";
-    $text .= "📍 Location: {$order->delivery_location}\n";
-
-    try {
-        // Change withOptions to withoutVerifying() here:
-        \Illuminate\Support\Facades\Http::withoutVerifying()
-            ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                'chat_id' => $owner->telegram_chat_id,
-                'text' => $text,
-                'parse_mode' => 'Markdown',
-                'reply_markup' => [
-                    'inline_keyboard' => [[
-                        ['text' => '✅ Confirm', 'callback_data' => "confirm_order_{$order->id}"],
-                        ['text' => '❌ Reject', 'callback_data' => "reject_order_{$order->id}"]
-                    ]]
-                ]
+        try {
+            Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
+                'chat_id' => $groupId,
+                'text' => $message,
+                'parse_mode' => 'Markdown'
             ]);
-    } catch (\Exception $e) {
-        Log::error('Telegram sendMessage failed: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Log::error("Failed to notify group for Owner {$owner->id}: " . $e->getMessage());
+        }
     }
-}
 }
