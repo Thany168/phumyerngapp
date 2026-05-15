@@ -11,7 +11,7 @@ class CategoryController extends Controller
     public function index(Request $request)
     {
         return response()->json(
-            Category::where('owner_id', $request->user()->owner->id)
+            Category::query()->where('owner_id', $this->ownerId($request))
                 ->orderBy('sort_order')->get()
         );
     }
@@ -25,7 +25,7 @@ class CategoryController extends Controller
             'is_active'  => 'boolean',
         ]);
         $category = Category::create(array_merge($data, [
-            'owner_id' => $request->user()->owner->id,
+            'owner_id' => $this->ownerId($request),
         ]));
         return response()->json($category, 201);
     }
@@ -52,6 +52,6 @@ class CategoryController extends Controller
 
     private function checkOwner(Request $request, int $ownerId): void
     {
-        if ($request->user()->owner->id !== $ownerId) abort(403);
+        if ($this->ownerId($request) !== $ownerId) abort(403);
     }
 }

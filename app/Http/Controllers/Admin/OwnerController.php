@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+
 
 class OwnerController extends Controller
 {
@@ -59,10 +61,11 @@ class OwnerController extends Controller
     {
         return response()->json($owner->load('user', 'subscription', 'products', 'orders'));
     }
- 
-    public function getMyLink(Request $request) {
-    $ownerId = $request->user()->owner->id;
-    $botUsername = "phumyerng_bot";
+
+    public function getMyLink(Request $request)
+    {
+        $ownerId = $this->ownerId($request);
+        $botUsername = "phumyerng_bot";
 
     // This is the link the owner can copy and give to customers
     $link = "https://t.me/{$botUsername}/app?startapp={$ownerId}";
@@ -81,12 +84,57 @@ class OwnerController extends Controller
         $owner->update($data);
         return response()->json($owner->load('user', 'subscription'));
     }
+    public function dashboardStats()
+{
+    /** @var \Illuminate\Database\Eloquent\Builder $ownerQuery */
+    $ownerQuery = Owner::query();
 
-    public function destroy(Owner $owner)
-    {
-        $owner->user->delete(); // cascades to owner
-        return response()->json(['message' => 'Owner deleted']);
+    return response()->json([
+        'total_shops'          => (int) $ownerQuery->count(),
+        'active_subscriptions' => (int) Subscription::query()->where('status', 'active')->count(),
+        'total_revenue'        => (float) DB::table('payments')->where('status', 'completed')->sum('amount'),
+        'recent_orders'        => (int) DB::table('orders')->where('created_at', '>=', now()->subDay())->count(),
+        'shops_by_status'      => [
+            'active'    => (int) Owner::query()->where('status', 'active')->count(),
+            'suspended' => (int) Owner::query()->where('status', 'suspended')->count(),
+            'trial'     => (int) Owner::query()->where('status', 'trial')->count(),
+        ]
+    ]);
+}
+        public function toggleStatus(Request $request, Owner $owner)
+        {
+            $request->validate([
+                'status' => 'required|in:active,suspended,trial'
+            ]);
+
+            $owner->update(['status' => $request->status]);
+
+            return response()->json([
+                'message' => "Shop status updated to {$request->status}",
+                'owner' => $owner
+            ]);
+        }
+
+   public function destroy(\App\Models\Owner $owner) // Explicitly type hint the namespace
+{
+    try {
+        return DB::transaction(function () use ($owner) {
+            // ... (keep your existing cleanup code)
+
+            if ($owner->user) {
+                $owner->user()->delete();
+            } else {
+                 $owner->query()->find($owner->id)?->delete();
+            }
+
+            return response()->json([
+                'message' => 'Owner and all linked data deleted successfully.'
+            ]);
+        });
+    } catch (\Exception $e) {
+        // ... (keep your error handling)
     }
+}
 
     public function updateSubscription(Request $request, Owner $owner)
     {
@@ -105,4 +153,5 @@ class OwnerController extends Controller
 
         return response()->json($sub);
     }
+
 }

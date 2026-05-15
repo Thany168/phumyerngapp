@@ -42,4 +42,11 @@ class Product extends Model
     {
         return $value ? asset('storage/' . $value) : null;
     }
+    public function delete()
+    {
+        if ($this->image_url) {
+            Storage::disk('public')->delete($this->image_url);
+        }
+        parent::delete();
+    }
 }

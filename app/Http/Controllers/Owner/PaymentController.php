@@ -10,7 +10,7 @@ class PaymentController extends Controller
 {
     public function index(Request $request)
     {
-        $ownerId = $request->user()->owner->id;
+        $ownerId = $this->ownerId($request);
         $payments = Payment::whereHas('order', fn($q) => $q->where('owner_id', $ownerId))
             ->with('order')
             ->orderByDesc('created_at')

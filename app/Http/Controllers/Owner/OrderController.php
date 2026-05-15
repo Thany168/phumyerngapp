@@ -14,7 +14,7 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $query = Order::where('owner_id', $request->user()->owner->id)
+        $query = Order::query()->where('owner_id', $this->ownerId($request))
             ->with('items.product', 'payment', 'delivery.deliveryUser')
             ->orderByDesc('created_at');
 
@@ -28,12 +28,7 @@ class OrderController extends Controller
 
     public function getMyLink(Request $request)
     {
-        // Make sure the user has an owner profile
-        if (!$request->user()->owner) {
-            return response()->json(['message' => 'Owner profile not found'], 404);
-        }
-
-        $ownerId = $request->user()->owner->id;
+        $ownerId = $this->ownerId($request);
         $botUsername = "phumyerng_bot"; // or env('TELEGRAM_BOT_USERNAME')
 
         $link = "https://t.me/{$botUsername}/app?startapp={$ownerId}";
@@ -112,13 +107,13 @@ class OrderController extends Controller
 
     public function deliveryStaff(Request $request)
     {
-        $staff = User::where('role', 'delivery')->get(['id', 'name', 'telegram_username']);
+        $staff = User::query()->where('role', 'delivery')->get(['id', 'name', 'telegram_username']);
         return response()->json($staff);
     }
 
     private function checkOwner(Request $request, Order $order): void
     {
-        if ($order->owner_id !== $request->user()->owner->id) abort(403);
+        if ($order->owner_id !== $this->ownerId($request)) abort(403);
     }
 
 }

@@ -24,4 +24,12 @@ class Category extends Model
     {
         return $this->hasMany(Product::class);
     }
+    public function delete()
+    {
+        // Optionally, delete all products in this category
+        foreach ($this->products as $product) {
+            $product->delete();
+        }
+        parent::delete();
+    }
 }
