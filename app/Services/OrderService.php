@@ -23,7 +23,7 @@ class OrderService
             $resolvedItems = [];
 
             foreach ($cartItems as $item) {
-                $product = Product::where('owner_id', $ownerId)
+                $product = Product::query()->where('owner_id', $ownerId)
                     ->where('id', $item['product_id'])
                     ->where('is_available', true)
                     ->firstOrFail();

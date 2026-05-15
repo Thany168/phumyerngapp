@@ -12,8 +12,9 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
+        $ownerId = $this->ownerId($request);
         return response()->json(
-            Product::where('owner_id', $request->user()->owner->id)
+            Product::query()->where('owner_id', $ownerId)
                 ->with('category')->orderBy('sort_order')->get()
         );
     }
@@ -35,7 +36,7 @@ class ProductController extends Controller
         }
 
         $product = Product::create(array_merge($data, [
-            'owner_id' => $request->user()->owner->id,
+            'owner_id' => $this->ownerId($request),
         ]));
         return response()->json($product->load('category'), 201);
     }
@@ -89,6 +90,6 @@ class ProductController extends Controller
     }
     private function checkOwner(Request $request, int $ownerId): void
     {
-        if ($request->user()->owner->id !== $ownerId) abort(403);
+        if ($this->ownerId($request) !== $ownerId) abort(403);
     }
 }

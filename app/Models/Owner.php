@@ -39,4 +39,12 @@ class Owner extends Model
     {
         return $this->hasOne(Subscription::class)->latestOfMany();
     }
+    public function delete()
+    {
+        $this->products()->delete();
+        $this->orders()->delete();
+        $this->deliveries()->delete();
+        $this->subscription()->delete();
+        return parent::delete();
+    }
 }

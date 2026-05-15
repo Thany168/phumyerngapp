@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?php
 
 namespace App\Http\Middleware;
@@ -27,5 +26,4 @@ class TelegramWebhookMiddleware
         return $next($request);
     }
 }
-=======
->>>>>>> 20e2247110a74df76c21de5b70d9fce662858920
+

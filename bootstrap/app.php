@@ -17,9 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role'             => RoleMiddleware::class,
-            'telegram.webhook' => TelegramWebhookMiddleware::class,
+            'telegram.webhook' => \App\Http\Middleware\TelegramWebhookMiddleware::class,
         ]);
     })
+    
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
