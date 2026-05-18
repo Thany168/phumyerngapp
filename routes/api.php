@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\Admin\OwnerController;
 // Route::get('/test', function () {
 //     return response()->json(['message' => 'API working']);
 // });
@@ -67,18 +67,30 @@ Route::middleware(['auth:sanctum', 'role:delivery'])->prefix('delivery')->group(
     Route::patch('tasks/{delivery}/delivered',  [App\Http\Controllers\Delivery\TaskController::class, 'markDelivered']);
 });
 
-// ─── Super Admin ──────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'role:super_admin'])->prefix('admin')->group(function () {
-    Route::get('owners',                              [App\Http\Controllers\Admin\OwnerController::class, 'index']);
-    Route::post('owners',                             [App\Http\Controllers\Admin\OwnerController::class, 'store']);
-    Route::get('owners/{owner}',                      [App\Http\Controllers\Admin\OwnerController::class, 'show']);
-    Route::put('owners/{owner}',                      [App\Http\Controllers\Admin\OwnerController::class, 'update']);
-    Route::delete('owners/{owner}',                   [App\Http\Controllers\Admin\OwnerController::class, 'destroy']);
-    Route::put('owners/{owner}/subscription',         [App\Http\Controllers\Admin\OwnerController::class, 'updateSubscription']);
-    Route::get('stats',                               [App\Http\Controllers\Admin\SystemMonitorController::class, 'index']);
+// =================================================================
+// 🌟 SHARED ROUTES (Both Super Admin AND Portal Owners can access)
+// =================================================================
+Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
+
+    // Clean URLs: These will map exactly to /api/admin/owners and /api/admin/dashboard-stats
+    Route::get('owners', [\App\Http\Controllers\Admin\OwnerController::class, 'index']);
+    Route::post('owners', [\App\Http\Controllers\Admin\OwnerController::class, 'store']);
+    Route::get('dashboard-stats', [\App\Http\Controllers\Admin\OwnerController::class, 'dashboardStats']);
+
+    // Toggle status endpoint layout route mapping
+    Route::post('owners/{id}/toggle-status', [\App\Http\Controllers\Admin\OwnerController::class, 'toggleStatus']);
 });
 
-
+// =================================================================
+// 🛡️ STRICT SUPER ADMIN ONLY ROUTES
+// =================================================================
+Route::middleware(['auth:sanctum', 'role:super_admin'])->prefix('admin')->group(function () {
+    Route::get('owners/{owner}', [\App\Http\Controllers\Admin\OwnerController::class, 'show']);
+    Route::put('owners/{owner}', [\App\Http\Controllers\Admin\OwnerController::class, 'update']);
+    Route::delete('owners/{owner}', [\App\Http\Controllers\Admin\OwnerController::class, 'destroy']);
+    Route::put('owners/{owner}/subscription', [\App\Http\Controllers\Admin\OwnerController::class, 'updateSubscription']);
+    Route::get('stats', [\App\Http\Controllers\Admin\SystemMonitorController::class, 'index']);
+});
 
 Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(function () {
 
