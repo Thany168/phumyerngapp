@@ -23,6 +23,7 @@ class User extends Authenticatable
         'telegram_id',       // customer only
         'telegram_username', // customer only
         'role',              // super_admin | owner | customer
+
     ];
 
     protected $hidden = [

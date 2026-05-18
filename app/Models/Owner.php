@@ -17,7 +17,7 @@ class Owner extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class , 'user_id');
     }
     public function categories()
     {
@@ -37,7 +37,7 @@ class Owner extends Model
     }
     public function subscription()
     {
-        return $this->hasOne(Subscription::class)->latestOfMany();
+        return $this->hasOne(Subscription::class, 'owner_id');
     }
     public function delete()
     {
