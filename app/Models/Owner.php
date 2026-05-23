@@ -10,9 +10,10 @@ class Owner extends Model
         'user_id',
         'shop_name',
         'shop_description',
-        'telegram_chat_id',
         'logo_url',
         'status',
+        'telegram_chat_id',
+        'telegram_verification_token',
     ];
 
     public function user()

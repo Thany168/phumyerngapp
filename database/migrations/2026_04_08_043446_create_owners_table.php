@@ -21,6 +21,10 @@ return new class extends Migration
             $table->enum('status', ['active', 'suspended', 'trail'])->default('active');
             $table->timestamps();
         });
+        Schema::table('owners', function (Blueprint $table) {
+                $table->string('custom_bot_token')->nullable();// For sending orders
+                $table->string('telegram_bot_username')->nullable(); // For generating customer links
+        });
     }
 
     /**

@@ -2,12 +2,18 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\OwnerController;
+use App\Http\Controllers\Admin\OwnerSettingsController;
+use App\Http\Controllers\TelegramBotController;
+use App\Http\Controllers\Auth\OwnerAuthController;
+use App\Http\Controllers\Auth\AdminAuthController;
 // Route::get('/test', function () {
 //     return response()->json(['message' => 'API working']);
 // });
 // ─── Public ──────────────────────────────────────────────
 Route::post('/auth/telegram',     [App\Http\Controllers\Auth\TelegramAuthController::class, 'login']);
 Route::post('/auth/telegram/dev', [App\Http\Controllers\Auth\TelegramAuthController::class, 'loginDev']);
+// 🌐 Public Telegram Bot Webhook Listener
+Route::post('/telegram/webhook', [\App\Http\Controllers\TelegramBotController::class, 'handleWebhook']);
 Route::post('/auth/owner/login',  [App\Http\Controllers\Auth\OwnerAuthController::class, 'login']);
 Route::post('/auth/owner/logout', [App\Http\Controllers\Auth\OwnerAuthController::class, 'logout'])->middleware('auth:sanctum');
 
@@ -67,6 +73,13 @@ Route::middleware(['auth:sanctum', 'role:delivery'])->prefix('delivery')->group(
     Route::patch('tasks/{delivery}/delivered',  [App\Http\Controllers\Delivery\TaskController::class, 'markDelivered']);
 });
 
+// 🚀 ADMIN AREA AUTH HANDSHAKE ROUTES
+// This group matches the "api/admin/..." prefix used by your React frontend app!
+Route::prefix('admin')->group(function () {
+    Route::post('/login', [AdminAuthController::class, 'login']);
+    Route::post('/verify-otp', [AdminAuthController::class, 'verifyOtp']);
+});
+
 // =================================================================
 // 🌟 SHARED ROUTES (Both Super Admin AND Portal Owners can access)
 // =================================================================
@@ -76,6 +89,7 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
     Route::get('owners', [\App\Http\Controllers\Admin\OwnerController::class, 'index']);
     Route::post('owners', [\App\Http\Controllers\Admin\OwnerController::class, 'store']);
     Route::get('dashboard-stats', [\App\Http\Controllers\Admin\OwnerController::class, 'dashboardStats']);
+    Route::post('/owner/{owner}/register-bot', [\App\Http\Controllers\TelegramBotController::class, 'registerCustomBot']);
 
     // Toggle status endpoint layout route mapping
     Route::post('owners/{id}/toggle-status', [\App\Http\Controllers\Admin\OwnerController::class, 'toggleStatus']);

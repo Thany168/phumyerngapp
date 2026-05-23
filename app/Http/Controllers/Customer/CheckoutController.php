@@ -7,6 +7,7 @@ use App\Models\Owner;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class CheckoutController extends Controller
 {
@@ -35,54 +36,51 @@ class CheckoutController extends Controller
             $owner->id
         );
 
+        // Fire off the real-time notification alert stream
         $this->notifyOwner($order);
 
         return response()->json($order, 201);
     }
+
     private function notifyOwner($order)
-{
-    $owner = $order->owner;
+    {
+        $owner = $order->owner ?? Owner::query()->find($order->owner_id);
 
-    // Safety check: if there is no owner, don't try to send a message
-    if (!$owner) {
-        Log::error('Order #' . $order->id . ' has no associated owner.');
-        return;
+        if (!$owner || !$owner->telegram_chat_id) {
+            Log::warning("Skipping notification: Owner or chat ID missing.");
+            return;
+        }
+
+        // Always use your single central system token configuration
+        $botToken = config('telegram.bot_token') ?? env('TELEGRAM_BOT_TOKEN');
+
+        $text = "🔔 *NEW ORDER RECEIVED #{$order->id}*\n\n";
+        $text .= "👤 Customer: " . ($order->customer_name ?? $order->name ?? 'Guest') . "\n";
+        $text .= "📞 Phone: " . ($order->customer_phone ?? $order->phone) . "\n";
+        $text .= "📍 Location: " . ($order->delivery_location ?? $order->location) . "\n\n";
+        $text .= "⚡ Please process this order via the interactive buttons below.";
+
+        $keyboard = [
+            'inline_keyboard' => [[
+                ['text' => '✅ Confirm', 'callback_data' => "confirm_order_{$order->id}"],
+                ['text' => '❌ Reject', 'callback_data' => "reject_order_{$order->id}"]
+            ]]
+        ];
+
+        try {
+            Http::withoutVerifying()
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'Accept'       => 'application/json',
+                ])
+                ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                    'chat_id'      => (string)$owner->telegram_chat_id, // Routes to that owner's specific group!
+                    'text'         => $text,
+                    'parse_mode'   => 'Markdown',
+                    'reply_markup' => json_encode($keyboard)
+                ]);
+        } catch (\Exception $e) {
+            Log::error('Telegram sendMessage crashed: ' . $e->getMessage());
+        }
     }
-
-    \Illuminate\Support\Facades\Log::info('Checking Owner Data: ', [
-        'owner_id_found' => $owner->id ?? 'NOT FOUND',
-        'chat_id_found' => $owner->telegram_chat_id ?? 'EMPTY'
-    ]);
-
-    // Pull from config, but fallback to env directly if config is empty
-    $botToken = config('telegram.bot_token') ?? env('TELEGRAM_BOT_TOKEN');
-
-    if (!$botToken) {
-        Log::info('Telegram bot token not set, skipping notification');
-        return;
-    }
-
-    $text = "🔔 *New Order #{$order->id}*\n";
-    $text .= "👤 Customer: {$order->customer_name}\n";
-    $text .= "📞 Phone: {$order->customer_phone}\n";
-    $text .= "📍 Location: {$order->delivery_location}\n";
-
-    try {
-        // Change withOptions to withoutVerifying() here:
-        \Illuminate\Support\Facades\Http::withoutVerifying()
-            ->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
-                'chat_id' => $owner->telegram_chat_id,
-                'text' => $text,
-                'parse_mode' => 'Markdown',
-                'reply_markup' => [
-                    'inline_keyboard' => [[
-                        ['text' => '✅ Confirm', 'callback_data' => "confirm_order_{$order->id}"],
-                        ['text' => '❌ Reject', 'callback_data' => "reject_order_{$order->id}"]
-                    ]]
-                ]
-            ]);
-    } catch (\Exception $e) {
-        Log::error('Telegram sendMessage failed: ' . $e->getMessage());
-    }
-}
 }

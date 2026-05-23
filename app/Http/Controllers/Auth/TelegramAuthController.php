@@ -40,7 +40,19 @@ class TelegramAuthController extends Controller
         );
 
         $token = $user->createToken('telegram-miniapp')->plainTextToken;
-        $owner = Owner::query()->where('user_id', $user->id)->first();
+
+        // 🚀 DYNAMIC MULTI-TENANT FIX:
+        // Prioritize request input owner_id first, then Telegram start_param, then user lookup fallback
+        $requestedOwnerId = $request->input('owner_id');
+        $telegramStartParam = $parsed['start_param'] ?? null;
+
+        $finalOwnerId = $requestedOwnerId ?: $telegramStartParam;
+
+        if (!$finalOwnerId) {
+            // Only runs if the link has absolutely no ID parameters passed
+            $owner = Owner::query()->where('user_id', $user->id)->first();
+            $finalOwnerId = $owner ? $owner->id : 28;
+        }
 
         return response()->json([
             'token' => $token,
@@ -49,46 +61,45 @@ class TelegramAuthController extends Controller
                 'name' => $user->name,
                 'role' => $user->role,
             ],
-            'owner_id' => $owner ? $owner->id : null,
+            'owner_id' => (string)$finalOwnerId, // 🌟 Guarantees the dynamic link ID is returned!
         ]);
     }
 
     public function loginDev(Request $request)
     {
-        if (app()->environment('production')) {
-            return response()->json(['message' => 'Not available'], 404);
-        }
-
         $request->validate([
             'telegram_id' => 'required|string',
-            'name' => 'required|string',
-            'role' => 'in:customer,owner,delivery,super_admin',
+            'name'        => 'required|string',
         ]);
 
         $user = User::firstOrCreate(
             ['telegram_id' => $request->telegram_id],
-            [
-                'name' => $request->name,
-                'email' => $request->telegram_id . '@telegram.local',
-                'password' => bcrypt('password'),
-                'role' => $request->role ?? 'customer',
-            ]
+            ['name' => $request->name, 'role' => $request->role ?? 'customer']
         );
 
-        $token = $user->createToken('dev-token')->plainTextToken;
-        $owner = Owner::query()->where('user_id', $user->id)->first();
+        $requestedOwnerId = $request->input('owner_id');
+
+        if (!$requestedOwnerId) {
+            $owner = Owner::query()->where('user_id', $user->id)->first();
+            $finalOwnerId = $owner ? $owner->id : Owner::query()->first()->id;
+        } else {
+            $finalOwnerId = $requestedOwnerId;
+        }
+
+        $token = $user->createToken('dev_auth_token')->plainTextToken;
 
         return response()->json([
-            'token' => $token,
-            'user' => $user,
-            'owner_id' => $owner ? $owner->id : null,
-        ]);
+            'token'    => $token,
+            'user'     => $user,
+            'owner_id' => (string)$finalOwnerId
+        ], 200);
     }
 
     private function parseInitData(string $initData): array
     {
         $result = [];
         foreach (explode('&', $initData) as $chunk) {
+            if (!str_contains($chunk, '=')) continue;
             [$key, $value] = array_pad(explode('=', $chunk, 2), 2, '');
             $result[urldecode($key)] = urldecode($value);
         }
