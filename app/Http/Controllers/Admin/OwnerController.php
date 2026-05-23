@@ -251,7 +251,7 @@ class OwnerController extends Controller
                 'message' => 'Failed to safely clean data constraints.',
                 'error'   => $e->getMessage()
             ], 500);
-        }
+        } 
     }
 
     /**
@@ -275,3 +275,4 @@ class OwnerController extends Controller
         return response()->json($sub);
     }
 }
+

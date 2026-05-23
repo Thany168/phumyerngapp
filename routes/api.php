@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\OwnerController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\UserController;
 // Route::get('/test', function () {
 //     return response()->json(['message' => 'API working']);
 // });
@@ -24,7 +26,6 @@ Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
     Route::get('/orders',                    [App\Http\Controllers\Customer\OrderTrackingController::class, 'index']);
     Route::get('/orders/{order}',            [App\Http\Controllers\Customer\OrderTrackingController::class, 'show']);
     Route::post('/orders/{order}/payment',   [App\Http\Controllers\Customer\OrderTrackingController::class, 'uploadPayment']);
-
 });
 
 // ─── Owner ────────────────────────────────────────────────
