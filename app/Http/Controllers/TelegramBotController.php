@@ -50,7 +50,7 @@ class TelegramBotController extends Controller
                 ]);
 
                 // 🌟 SHARED BOT FIX: Link always points to your main @phumyerng_bot short link!
-                $customerBotLink = "https://t.me/phumyerng_bot/app?startapp={$owner->id}";
+                $customerBotLink = "https://t.me/phumyerng_bot?startapp={$owner->id}";
 
                 $msg = "🎉 <b>PhumYerng Connection Successful!</b>\n\n";
                 $msg .= "🏪 Shop: <b>" . $owner->shop_name . "</b>\n";
