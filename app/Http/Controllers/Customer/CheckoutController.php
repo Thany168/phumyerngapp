@@ -13,34 +13,35 @@ class CheckoutController extends Controller
 {
     public function __construct(private OrderService $orderService) {}
 
-    public function store(Request $request, Owner $owner)
-    {
-        $data = $request->validate([
-            'phone'              => 'required|string|max:30',
-            'location'           => 'required|string',
-            'items'              => 'required|array|min:1',
-            'items.*.product_id' => 'required|integer',
-            'items.*.quantity'   => 'required|integer|min:1',
-        ]);
+    // 🚀 Fix: Drop 'Owner' type-hinting to prevent implicit database lookups
+public function store(Request $request, $ownerId)
+{
+    $data = $request->validate([
+        'phone'              => 'required|string|max:30',
+        'location'           => 'required|string',
+        'items'              => 'required|array|min:1',
+        'items.*.product_id' => 'required|integer',
+        'items.*.quantity'   => 'required|integer|min:1',
+    ]);
 
-        $user  = $request->user();
-        $order = $this->orderService->createOrder(
-            [
-                'user_id'     => $user->id,
-                'telegram_id' => $user->telegram_id ?? '',
-                'name'        => $user->name,
-                'phone'       => $request->phone,
-                'location'    => $request->location,
-            ],
-            $request['items'],
-            $owner->id
-        );
+    $user  = $request->user();
+    $order = $this->orderService->createOrder(
+        [
+            'user_id'     => $user->id,
+            'telegram_id' => $user->telegram_id ?? '',
+            'name'        => $user->name,
+            'phone'       => $request->phone,
+            'location'    => $request->location,
+        ],
+        $request['items'],
+        $ownerId // ⚡ Pass the raw ID integer straight through to the service class
+    );
 
-        // Fire off the real-time notification alert stream
-        $this->notifyOwner($order);
+    // Fire off the real-time notification alert stream
+    $this->notifyOwner($order);
 
-        return response()->json($order, 201);
-    }
+    return response()->json($order, 201);
+}
 
     private function notifyOwner($order)
     {
