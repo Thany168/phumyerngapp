@@ -15,9 +15,9 @@ class ProductController extends Controller
         // 1. Get search term (if any)
     $search = trim((string) ($request->query('search', '') ?: $request->query('q', '')));
     $searchLower = mb_strtolower($search);
-    
+
     // 2. Filter Categories and Products ONLY for THIS specific owner
-    $categories = Category::where('owner_id', $owner->id) // Use the ID from the route parameter
+    $categories = Category::query()->where('owner_id', $owner->id) // Use the ID from the route parameter
         ->where('is_active', true)
         ->with(['products' => function ($query) use ($searchLower) {
             $query->where('is_available', true)

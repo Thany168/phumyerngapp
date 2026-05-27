@@ -31,7 +31,7 @@ class OrderController extends Controller
         $ownerId = $this->ownerId($request);
         $botUsername = "phumyerng_bot"; // or env('TELEGRAM_BOT_USERNAME')
 
-        $link = "https://t.me/{$botUsername}/app?startapp={$ownerId}";
+        $link = "https://t.me/{$botUsername}?startapp={$ownerId}";
 
         return response()->json([
             'owner_id' => $ownerId,
@@ -40,38 +40,41 @@ class OrderController extends Controller
         ]);
     }
 
-   public function store(Request $request, \App\Models\Owner $owner)
-{
-    // Match the React keys exactly
-    $validated = $request->validate([
-        'items' => 'required|array',
-        'total_amount' => 'required|numeric', // Changed from total_price to total_amount
-        'phone' => 'nullable|string',
-        'location' => 'nullable|string',
-    ]);
-
-    // 1. Create the Order linked to the Owner from the URL
-    $order = Order::create([
-        'user_id' => auth()->id,// This prevents the error if not logged in
-        'owner_id' => $owner->id, // Get from URL parameter automatically
-        'total_amount' => $validated['total_amount'],
-        'phone' => $validated['phone'] ?? null,
-        'location' => $validated['location'] ?? null,
-        'status' => 'pending',
-    ]);
-
-    // 2. Create Order Items
-    foreach ($validated['items'] as $item) {
-        $order->items()->create([
-            'product_id' => $item['product_id'],
-            'quantity' => $item['quantity'],
-            'price' => $item['price'],
+  public function store(Request $request, $ownerId)
+    {
+        // 🎯 1. Match the React JSON keys exactly with strict validation parameters
+        $validated = $request->validate([
+            'items'        => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer',
+            'items.*.quantity'   => 'required|integer|min:1',
+            'items.*.price'      => 'required|numeric',
+            'total_amount' => 'required|numeric',
+            'phone'        => 'nullable|string',
+            'location'     => 'nullable|string',
         ]);
-    }
 
-    // 3. Return the order WITH the ID for the next step (Payment Upload)
-    return response()->json($order, 201);
-}
+        // 🎯 2. Safely create the root Order transaction instance
+        $order = Order::create([
+            'user_id'      => auth()->id(), // Captures authenticated customer profile identifier safely if logged in
+            'owner_id'     => $ownerId,     // Directly reads the raw target store numerical parameter from the URL string tracker!
+            'total_amount' => $validated['total_amount'],
+            'phone'        => $validated['phone'] ?? null,
+            'location'     => $validated['location'] ?? null,
+            'status'       => 'pending',
+        ]);
+
+        // 🎯 3. Loop through and attach Order Items tracking matrices
+        foreach ($validated['items'] as $item) {
+            $order->items()->create([
+                'product_id' => $item['product_id'],
+                'quantity'   => $item['quantity'],
+                'price'      => $item['price'],
+            ]);
+        }
+
+        // 🎯 4. Load relationships for frontend responses uniformity mapping
+        return response()->json($order->load('items.product'), 201);
+    }
 
     public function show(Request $request, Order $order)
     {

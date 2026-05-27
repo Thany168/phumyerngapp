@@ -8,7 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
-
+use App\Models\User;
 class OrderService
 {
     public function __construct(
@@ -16,26 +16,34 @@ class OrderService
         private DeliveryService             $deliveryService,
     ) {}
 
-    public function createOrder(array $data, array $cartItems, int $ownerId): Order
+   public function createOrder(array $data, array $cartItems, int $ownerId): Order
     {
-        return DB::transaction(function () use ($data, $cartItems, $ownerId) {
+        // 🚀 Step 1: Core Database Insertion Only
+        $order = DB::transaction(function () use ($data, $cartItems, $ownerId) {
             $total         = 0;
             $resolvedItems = [];
 
             foreach ($cartItems as $item) {
-                $product = Product::query()->where('owner_id', $ownerId)
-                    ->where('id', $item['product_id'])
-                    ->where('is_available', true)
-                    ->firstOrFail();
+                $pId = $item['product_id'] ?? $item['id'] ?? null;
+
+                $product = Product::query()
+                    ->where('owner_id', $ownerId)
+                    ->where('id', $pId)
+                    ->first();
+
+                if (!$product) {
+                    return abort(422, "Product ID {$pId} not found.");
+                }
 
                 $subtotal        = $product->price * $item['quantity'];
                 $total          += $subtotal;
                 $resolvedItems[] = compact('product', 'subtotal') + ['quantity' => $item['quantity']];
             }
 
+            // Create Order safely (Handles null user_id via your Postgres fix)
             $order = Order::create([
                 'owner_id'             => $ownerId,
-                'user_id'              => $data['user_id'],
+                'user_id'              => $data['user_id'] ?? null,
                 'customer_telegram_id' => $data['telegram_id'],
                 'customer_name'        => $data['name'],
                 'customer_phone'       => $data['phone'],
@@ -44,6 +52,7 @@ class OrderService
                 'total_amount'         => $total,
             ]);
 
+            // Create Items
             foreach ($resolvedItems as $ri) {
                 OrderItem::create([
                     'order_id'     => $order->id,
@@ -55,19 +64,35 @@ class OrderService
                 ]);
             }
 
-            Payment::create(['order_id' => $order->id]);
-
-            // Notify owner
-            $owner = $order->owner;
-            if ($owner->telegram_chat_id) {
-                $this->telegram->notifyOwnerNewOrder(
-                    $owner->telegram_chat_id,
-                    $order->load('items')
-                );
-            }
-
-            return $order->load('items.product', 'payment');
+            return $order;
         });
+
+        // 🚀 Step 2: Safe Telegram Bot Group Alert Notification (Outside DB Transaction)
+        try {
+            // Force fetch data directly from the owners table columns mapping
+            $ownerRow = \Illuminate\Support\Facades\DB::table('owners')
+                ->where('id', $ownerId)
+                ->first();
+
+            if ($ownerRow && !empty($ownerRow->telegram_chat_id)) {
+
+                // 📝 Log tracing check before sending
+                \Log::info("🤖 OrderService triggering bot alert to chat: " . $ownerRow->telegram_chat_id);
+
+                $this->telegram->notifyOwnerNewOrder(
+                    trim($ownerRow->telegram_chat_id),
+                    $order
+                );
+
+            } else {
+                \Log::warning("⚠️ Telegram alert skipped: Owner ID {$ownerId} has no telegram_chat_id inside pgAdmin owners table row cell.");
+            }
+        } catch (\Exception $telegramEx) {
+            // This captures the exact line crash detail inside your storage/logs/laravel.log file!
+            \Log::error('❌ Telegram Bot Dispatch Layer Crashed: ' . $telegramEx->getMessage());
+        }
+
+        return $order->load('items.product');
     }
 
     public function confirmOrder(Order $order, int $verifiedBy): Order
