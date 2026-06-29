@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProfileController extends Controller
 {
@@ -50,10 +51,22 @@ class ProfileController extends Controller
 
         if ($request->hasFile('logo')) {
             $oldPath = $owner->getAttributes()['logo_url'] ?? null;
-            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+            if ($oldPath && !str_starts_with($oldPath, 'http') && Storage::disk('public')->exists($oldPath)) {
                 Storage::disk('public')->delete($oldPath);
             }
-            $payload['logo_url'] = $request->file('logo')->store('logos', 'public');
+
+            try {
+                $upload = Cloudinary::uploadApi()->upload($request->file('logo')->getRealPath(), [
+                    'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET', 'snaporder-preset'),
+                ]);
+
+                if (isset($upload['secure_url'])) {
+                    $payload['logo_url'] = $upload['secure_url'];
+                }
+            } catch (\Exception $e) {
+                \Log::error('ProfileController Cloudinary upload failed: ' . $e->getMessage());
+                $payload['logo_url'] = $request->file('logo')->store('logos', 'public');
+            }
         }
 
         $owner->update($payload);
@@ -107,7 +120,7 @@ class ProfileController extends Controller
         $rawPath = $owner->getAttributes()['logo_url'] ?? null;
 
         $data['logo_url'] = $rawPath
-            ? config('app.url') . '/storage/' . $rawPath
+            ? (str_starts_with($rawPath, 'http') ? $rawPath : config('app.url') . '/storage/' . $rawPath)
             : null;
 
         return $data;

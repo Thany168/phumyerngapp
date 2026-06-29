@@ -15,12 +15,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // 1️⃣ Map your custom aliases safely
         $middleware->alias([
             'role'             => RoleMiddleware::class,
-            'telegram.webhook' => \App\Http\Middleware\TelegramWebhookMiddleware::class,
+            'telegram.webhook' => TelegramWebhookMiddleware::class,
         ]);
+        $middleware->trustProxies(at: '*');
     })
-    
+
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();

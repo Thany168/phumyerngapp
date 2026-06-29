@@ -6,7 +6,8 @@ use App\Http\Controllers\Admin\OwnerSettingsController;
 use App\Http\Controllers\TelegramBotController;
 use App\Http\Controllers\Auth\OwnerAuthController;
 use App\Http\Controllers\Auth\AdminAuthController;
-
+use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Owner\ProductController;
 // ─── PUBLIC AUTH & TELEGRAM WEBHOOK ───────────────────────────────────────
 Route::post('/auth/telegram',     [App\Http\Controllers\Auth\TelegramAuthController::class, 'login']);
 Route::post('/auth/telegram/dev', [App\Http\Controllers\Auth\TelegramAuthController::class, 'loginDev']);
@@ -22,7 +23,7 @@ Route::post('/shop/{owner}/checkout',  [App\Http\Controllers\Customer\CheckoutCo
 
 // 🎯 FIXED: Moved out of the auth group to prevent the 403 error during your automated frontend redirect flow!
 Route::post('/orders/{order}/payment', [App\Http\Controllers\Customer\OrderTrackingController::class, 'uploadPayment']);
-
+Route::get('/media', [MediaController::class, 'stream']); // New media streaming endpoint
 
 // ─── CUSTOMER TRACKING (AUTHENTICATED ONLY) ────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
@@ -34,32 +35,35 @@ Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
 // ─── PORTAL OWNER MANAGEMENT AREA ──────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:owner'])->prefix('owner')->group(function () {
     // Categories
-    Route::get('/my-link', [App\Http\Controllers\Owner\OrderController::class, 'getMyLink']); // Fixed prefix redundancy
+    Route::get('/my-link', [App\Http\Controllers\Owner\OrderController::class, 'getMyLink']);
 
-    Route::get('categories',    [App\Http\Controllers\Owner\CategoryController::class, 'index']);
-    $route = Route::post('categories',   [App\Http\Controllers\Owner\CategoryController::class, 'store']);
-    Route::put('categories/{category}', [App\Http\Controllers\Owner\CategoryController::class, 'update']);
+    Route::get('categories',               [App\Http\Controllers\Owner\CategoryController::class, 'index']);
+    Route::post('categories',              [App\Http\Controllers\Owner\CategoryController::class, 'store']);
+    Route::put('categories/{category}',    [App\Http\Controllers\Owner\CategoryController::class, 'update']);
     Route::delete('categories/{category}', [App\Http\Controllers\Owner\CategoryController::class, 'destroy']);
 
-    // Products
-    Route::get('products',           [App\Http\Controllers\Owner\ProductController::class, 'index']);
-    Route::post('products',          [App\Http\Controllers\Owner\ProductController::class, 'store']);
-    Route::get('products/{product}', [App\Http\Controllers\Owner\ProductController::class, 'show']);
-    Route::put('products/{product}', [App\Http\Controllers\Owner\ProductController::class, 'update']);
+    // Products Group Mappings
+    Route::get('products',              [App\Http\Controllers\Owner\ProductController::class, 'index']);
+    Route::post('products',             [App\Http\Controllers\Owner\ProductController::class, 'store']);
+    Route::get('products/{product}',    [App\Http\Controllers\Owner\ProductController::class, 'show']);
     Route::delete('products/{product}', [App\Http\Controllers\Owner\ProductController::class, 'destroy']);
 
+    // 🎯 THE ROUTING FIX: Register BOTH routes here so Laravel handles the internal conversion smoothly!
+    Route::post('products/{product}',   [App\Http\Controllers\Owner\ProductController::class, 'update']);
+    Route::put('products/{product}',    [App\Http\Controllers\Owner\ProductController::class, 'update']);
+
     // Orders
-    Route::get('orders',                         [App\Http\Controllers\Owner\OrderController::class, 'index']);
-    Route::get('orders/{order}',                 [App\Http\Controllers\Owner\OrderController::class, 'show']);
-    Route::patch('orders/{order}/confirm',        [App\Http\Controllers\Owner\OrderController::class, 'confirm']);
-    Route::patch('orders/{order}/reject',         [App\Http\Controllers\Owner\OrderController::class, 'reject']);
+    Route::get('orders',                           [App\Http\Controllers\Owner\OrderController::class, 'index']);
+    Route::get('orders/{order}',                   [App\Http\Controllers\Owner\OrderController::class, 'show']);
+    Route::patch('orders/{order}/confirm',         [App\Http\Controllers\Owner\OrderController::class, 'confirm']);
+    Route::patch('orders/{order}/reject',          [App\Http\Controllers\Owner\OrderController::class, 'reject']);
     Route::patch('orders/{order}/assign-delivery', [App\Http\Controllers\Owner\OrderController::class, 'assignDelivery']);
-    Route::get('delivery-staff',                 [App\Http\Controllers\Owner\OrderController::class, 'deliveryStaff']);
+    Route::get('delivery-staff',                   [App\Http\Controllers\Owner\OrderController::class, 'deliveryStaff']);
 
     // Payments & Profile
-    Route::get('payments',        [App\Http\Controllers\Owner\PaymentController::class, 'index']);
-    Route::get('profile',         [App\Http\Controllers\Owner\ProfileController::class, 'show']);
-    Route::post('profile',        [App\Http\Controllers\Owner\ProfileController::class, 'update']);
+    Route::get('payments',         [App\Http\Controllers\Owner\PaymentController::class, 'index']);
+    Route::get('profile',          [App\Http\Controllers\Owner\ProfileController::class, 'show']);
+    Route::post('profile',         [App\Http\Controllers\Owner\ProfileController::class, 'update']);
     Route::post('change-password', [App\Http\Controllers\Owner\ProfileController::class, 'changePassword']);
 });
 
