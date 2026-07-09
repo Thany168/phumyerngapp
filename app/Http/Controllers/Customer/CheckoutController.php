@@ -13,8 +13,8 @@ class CheckoutController extends Controller
     public function store(Request $request, $owner)
     {
         $request->validate([
-            'phone'              => 'required|string|max:30',
-            'location'           => 'required|string',
+            'phone'              => 'nullable|string|max:30',
+            'location'           => 'nullable|string',
             'items'              => 'required|array|min:1',
             'items.*.product_id' => 'required|integer',
             'items.*.quantity'   => 'required|integer|min:1',

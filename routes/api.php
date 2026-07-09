@@ -91,9 +91,10 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
 });
 
 // Strict Super Admin Access Guards
-Route::middleware(['auth:sanctum', 'role:super_admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth:sanctum', 'role:super_admin,admin'])->prefix('admin')->group(function () {
     Route::get('owners/{owner}',              [\App\Http\Controllers\Admin\OwnerController::class, 'show']);
     Route::put('owners/{owner}',              [\App\Http\Controllers\Admin\OwnerController::class, 'update']);
+    Route::patch('owners/{owner}',            [\App\Http\Controllers\Admin\OwnerController::class, 'update']);
     Route::delete('owners/{owner}',           [\App\Http\Controllers\Admin\OwnerController::class, 'destroy']);
     Route::put('owners/{owner}/subscription', [\App\Http\Controllers\Admin\OwnerController::class, 'updateSubscription']);
     Route::get('stats',                       [\App\Http\Controllers\Admin\SystemMonitorController::class, 'index']);

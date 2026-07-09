@@ -53,4 +53,19 @@ class CloudinaryLocalBypass extends Cloudinary
     {
         return $this->bypassSsl(parent::searchFoldersApi());
     }
+
+    /**
+     * Proxy destroy() to uploadApi()->destroy() so Cloudinary::destroy($publicId)
+     * works correctly through the bypass class without throwing "undefined method".
+     */
+    public function destroy(string $publicId, array $options = []): array
+    {
+        try {
+            $result = $this->uploadApi()->destroy($publicId, $options);
+            return is_array($result) ? $result : [];
+        } catch (\Exception $e) {
+            \Log::warning('CloudinaryLocalBypass::destroy failed: ' . $e->getMessage());
+            return ['result' => 'error', 'message' => $e->getMessage()];
+        }
+    }
 }

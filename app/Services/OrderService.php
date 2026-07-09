@@ -44,10 +44,10 @@ class OrderService
             $order = Order::create([
                 'owner_id'             => $ownerId,
                 'user_id'              => $data['user_id'] ?? null,
-                'customer_telegram_id' => $data['telegram_id'],
-                'customer_name'        => $data['name'],
-                'customer_phone'       => $data['phone'],
-                'delivery_location'    => $data['location'],
+                'customer_telegram_id' => $data['telegram_id'] ?? null,
+                'customer_name'        => $data['name'] ?? 'Telegram Customer',
+                'customer_phone'       => $data['phone'] ?? null,       // Optional field
+                'delivery_location'    => $data['location'] ?? null,    // Optional field
                 'status'               => OrderStatus::Pending,
                 'total_amount'         => $total,
             ]);

@@ -59,22 +59,17 @@ class TelegramNotificationService
     public function notifyOwnerNewOrder(string $ownerChatId, $order): void
     {
         $items = $order->items->map(fn($i) => "• {$i->product_name} x{$i->quantity}")->join("\n");
+
+        // Build optional fields — only show lines if values exist
+        $phoneLine    = !empty($order->customer_phone)    ? "\nPhone: {$order->customer_phone}"         : '';
+        $locationLine = !empty($order->delivery_location) ? "\nLocation: {$order->delivery_location}"   : '';
+
         $text  = "🛒 <b>New Order #{$order->id}</b>\n\n"
-            . "Customer: " . ($order->customer_name ?? 'Guest Customer') . "\n"
-            . "Phone: " . ($order->customer_phone ?? 'N/A') . "\n"
-            . "Location: " . ($order->delivery_location ?? 'N/A') . "\n\n"
+            . "Customer: " . ($order->customer_name ?? 'Telegram Customer') . $phoneLine . $locationLine . "\n\n"
             . "<b>Items:</b>\n{$items}\n\n"
             . "<b>Total Bill:</b> $" . number_format($order->total_amount, 2);
 
-        // 🎯 FIXED DATA FORMAT: Match your callback parser using underscores (_) instead of colons (:)
-        $markup = [
-            'inline_keyboard' => [[
-                ['text' => '✅ Confirm Payment', 'callback_data' => "confirm_order_{$order->id}"],
-                ['text' => '❌ Reject',          'callback_data' => "reject_order_{$order->id}"],
-            ]]
-        ];
-
-        $this->sendMessage($ownerChatId, $text, $markup);
+        $this->sendMessage($ownerChatId, $text);
     }
 
     public function notifyCustomerOrderStatus(string $chatId, $order): void
